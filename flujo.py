@@ -303,4 +303,128 @@ elif page == "📈 Índice de Transparencia":
                     {"range": [0, 25], "color": "red"},
                     {"range": [25, 50], "color": "orange"},
                     {"range": [50, 75], "color": "yellow"},
-                    {"range": [75, 100], "color": "
+                    {"range": [75, 100], "color": "green"}
+                ],
+                "threshold": {"line": {"color": "black", "width": 4}, "thickness": 0.75, "value": 75}
+            }
+        ))
+        fig_gauge.update_layout(height=400)
+        st.plotly_chart(fig_gauge, use_container_width=True)
+    
+    with col2:
+        st.metric("Puntaje ITI", f"{iti_total:.0f}/100")
+        if iti_total >= 75:
+            st.success("Nivel: **Avanzado**")
+        elif iti_total >= 50:
+            st.warning("Nivel: **Intermedio**")
+        else:
+            st.error("Nivel: **Básico**")
+        
+        st.markdown("---")
+        st.caption("Meta 2026: 75 puntos")
+    
+    # Desglose por dimensión
+    st.subheader("Desglose por Dimensión")
+    
+    dimensiones = ['Divulgación de datos', 'Revisión independiente', 'Trabajo multiactor', 'Responsabilidad social']
+    puntajes = [disclosure_score, assurance_score, multistakeholder_score, accountability_score]
+    maximos = [25, 25, 25, 25]
+    
+    fig_dim = go.Figure()
+    for i, (dim, punt, maxi) in enumerate(zip(dimensiones, puntajes, maximos)):
+        fig_dim.add_trace(go.Bar(
+            x=[dim],
+            y=[punt],
+            name=dim,
+            text=[f"{punt}/{maxi}"],
+            textposition='auto'
+        ))
+    
+    fig_dim.update_layout(
+        title="Puntaje por Dimensión ITI",
+        yaxis_title="Puntaje",
+        yaxis_range=[0, 25],
+        showlegend=False,
+        height=400
+    )
+    st.plotly_chart(fig_dim, use_container_width=True)
+    
+    # Recomendaciones
+    st.subheader("📋 Recomendaciones de Mejora")
+    
+    if disclosure_score < 20:
+        st.warning("🔹 **Divulgación de datos**: Publicar más información en formato OC4IDS")
+    if assurance_score < 20:
+        st.warning("🔹 **Revisión independiente**: Incorporar validación por terceros en al menos 5 riesgos")
+    if multistakeholder_score < 20:
+        st.warning("🔹 **Trabajo multiactor**: Involucrar a sociedad civil en seguimiento de proyectos")
+    if accountability_score < 20:
+        st.warning("🔹 **Responsabilidad social**: Resolver las alertas rojas pendientes")
+
+# ============================================================================
+# PÁGINA 6: EXPORTAR OC4IDS
+# ============================================================================
+elif page == "📤 Exportar OC4IDS":
+    st.title("📤 Exportar Datos en Formato OC4IDS")
+    st.caption("Open Contracting for Infrastructure Data Standard v1.1")
+    st.markdown("---")
+    
+    st.markdown("""
+    El estándar **OC4IDS** permite que los datos de infraestructura sean:
+    - **Comparables** entre países y proyectos
+    - **Reutilizables** por organizaciones internacionales
+    - **Auditables** por ciudadanos y donantes
+    
+    CoST recomienda este formato como mínimo de transparencia.
+    """)
+    
+    # Generar JSON OC4IDS
+    oc4ids_data = {
+        "version": "1.1",
+        "publisher": {
+            "name": "Unidad de Construcción de Edificios del Estado",
+            "uri": "https://example.gob.gt",
+            "legalName": "Ministerio de Infraestructura"
+        },
+        "publishedDate": datetime.now().isoformat(),
+        "projects": []
+    }
+    
+    for _, row in df.iterrows():
+        project = {
+            "id": row['id'],
+            "name": row['descripcion_riesgo'],
+            "phase": row['fase'],
+            "status": row['estado_semanal'],
+            "value": {
+                "amount": int(row['estimacion_ahorro_q']),
+                "currency": "GTQ"
+            },
+            "parties": [
+                {
+                    "name": row['responsable_riesgo'],
+                    "roles": ["responsible"],
+                    "details": {"contactPoint": row['accion_requerida']}
+                }
+            ],
+            "documents": [
+                {
+                    "title": "Matriz de Riesgos CoST",
+                    "format": "text/csv",
+                    "datePublished": row['fecha_actualizacion'].strftime('%Y-%m-%d')
+                }
+            ]
+        }
+        oc4ids_data["projects"].append(project)
+    
+    import json
+    oc4ids_json = json.dumps(oc4ids_data, indent=2, ensure_ascii=False)
+    
+    st.download_button(
+        "📥 Descargar como OC4IDS JSON",
+        oc4ids_json,
+        "oc4ids_export.json",
+        "application/json"
+    )
+    
+    st.code(oc4ids_json, language='json')
